@@ -360,7 +360,7 @@ class LRFinder(object):
             """Gets a batch, passes it to get_model_output"""
             batch = next(train_iter)
             
-            loss, acc = self.get_loss_acc(self.model, batch, **kwargs)
+            loss, acc = self.get_loss_acc(self.model, batch, device=self.device, **kwargs)
             
             # Loss should be averaged in each step
             loss /= accumulation_steps
@@ -393,7 +393,7 @@ class LRFinder(object):
         self.model.eval()
         with torch.no_grad():
             for batch in val_iter:
-                loss, acc = self.get_loss_acc(self.model, inputs, **kwargs)
+                loss, acc = self.get_loss_acc(self.model, inputs, device=self.device, **kwargs)
                 running_loss += loss.item() * len(labels)
 
         return running_loss / len(val_iter.dataset)
