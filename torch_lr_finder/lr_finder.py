@@ -128,8 +128,7 @@ class LRFinder(object):
     def __init__(
         self,
         model,
-        optimizer,
-        criterion,
+        optimizer,        
         device=None,
         memory_cache=True,
         cache_dir=None,
@@ -140,7 +139,6 @@ class LRFinder(object):
         self._check_for_scheduler()
 
         self.model = model
-        self.criterion = criterion
         self.history = {"lr": [], "loss": []}
         self.best_loss = None
         self.memory_cache = memory_cache
@@ -312,7 +310,7 @@ class LRFinder(object):
             )
             if val_loader:
                 loss = self._validate(
-                    val_iter, non_blocking_transfer=non_blocking_transfer
+                    val_iter, non_blocking_transfer=non_blocking_transfer, **kwargs
                 )
 
             # Update the learning rate
