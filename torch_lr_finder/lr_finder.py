@@ -147,7 +147,7 @@ class LRFinder(object):
         device=None,
         memory_cache=True,
         cache_dir=None,
-        get_model_output=None
+        get_loss_acc=None
     ):
         # Check if the optimizer is already attached to a scheduler
         self.optimizer = optimizer
@@ -167,7 +167,7 @@ class LRFinder(object):
         self.state_cacher.store("model", self.model.state_dict())
         self.state_cacher.store("optimizer", self.optimizer.state_dict())
 
-        self.get_model_output = get_model_output
+        self.get_loss_acc = get_loss_acc
         
         # If device is None, use the same as the model
         if device:
@@ -194,6 +194,7 @@ class LRFinder(object):
         diverge_th=5,
         accumulation_steps=1,
         non_blocking_transfer=True,
+        **kwargs
     ):
         """Performs the learning rate range test.
 
@@ -321,6 +322,7 @@ class LRFinder(object):
                 train_iter,
                 accumulation_steps,
                 non_blocking_transfer=non_blocking_transfer,
+                **kwargs
             )
             if val_loader:
                 loss = self._validate(
@@ -365,24 +367,17 @@ class LRFinder(object):
             if "initial_lr" in param_group:
                 raise RuntimeError("Optimizer already has a scheduler attached to it")
 
-    def _train_batch(self, train_iter, accumulation_steps, non_blocking_transfer=True):
+    def _train_batch(self, train_iter, accumulation_steps, non_blocking_transfer=True, **kwargs):
         self.model.train()
         total_loss = None  # for late initialization
 
         self.optimizer.zero_grad()
         for i in range(accumulation_steps):
-            inputs, labels = next(train_iter)
-            inputs, labels = self._move_to_device(
-                inputs, labels, non_blocking=non_blocking_transfer
-            )
-
-            # Forward pass
-#             outputs = self.model(inputs)
+            """Gets a batch, passes it to get_model_output"""
+            batch = next(train_iter)
             
-            outputs = self.get_model_output(self.model, inputs)
+            loss, acc = self.get_loss_acc(self.model, batch, **kwargs)
             
-            loss = self.criterion(outputs, labels)
-
             # Loss should be averaged in each step
             loss /= accumulation_steps
 
@@ -425,21 +420,13 @@ class LRFinder(object):
         labels = move(labels, self.device, non_blocking=non_blocking)
         return inputs, labels
 
-    def _validate(self, val_iter, non_blocking_transfer=True):
+    def _validate(self, val_iter, non_blocking_transfer=True, **kwargs):
         # Set model to evaluation mode and disable gradient computation
         running_loss = 0
         self.model.eval()
         with torch.no_grad():
-            for inputs, labels in val_iter:
-                # Move data to the correct device
-                inputs, labels = self._move_to_device(
-                    inputs, labels, non_blocking=non_blocking_transfer
-                )
-
-                # Forward pass and loss computation
-#                 outputs = self.model(inputs)
-                outputs = self.get_model_output(self.model, inputs)
-                loss = self.criterion(outputs, labels)
+            for batch in val_iter:
+                loss, acc = self.get_loss_acc(self.model, inputs, **kwargs)
                 running_loss += loss.item() * len(labels)
 
         return running_loss / len(val_iter.dataset)
