@@ -147,6 +147,7 @@ class LRFinder(object):
         device=None,
         memory_cache=True,
         cache_dir=None,
+        get_model_output=None
     ):
         # Check if the optimizer is already attached to a scheduler
         self.optimizer = optimizer
@@ -166,6 +167,8 @@ class LRFinder(object):
         self.state_cacher.store("model", self.model.state_dict())
         self.state_cacher.store("optimizer", self.optimizer.state_dict())
 
+        self.get_model_output = get_model_output
+        
         # If device is None, use the same as the model
         if device:
             self.device = device
@@ -374,7 +377,10 @@ class LRFinder(object):
             )
 
             # Forward pass
-            outputs = self.model(inputs)
+#             outputs = self.model(inputs)
+            
+            outputs = self.get_model_output(self.model, inputs)
+            
             loss = self.criterion(outputs, labels)
 
             # Loss should be averaged in each step
@@ -431,7 +437,8 @@ class LRFinder(object):
                 )
 
                 # Forward pass and loss computation
-                outputs = self.model(inputs)
+#                 outputs = self.model(inputs)
+                outputs = self.get_model_output(self.model, inputs)
                 loss = self.criterion(outputs, labels)
                 running_loss += loss.item() * len(labels)
 
