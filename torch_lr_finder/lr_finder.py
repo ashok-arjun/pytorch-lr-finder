@@ -28,24 +28,12 @@ class DataLoaderIter(object):
     def dataset(self):
         return self.data_loader.dataset
 
-    def inputs_labels_from_batch(self, batch_data):
-        if not isinstance(batch_data, list) and not isinstance(batch_data, tuple):
-            raise ValueError(
-                "Your batch type is not supported: {}. Please inherit from "
-                "`TrainDataLoaderIter` or `ValDataLoaderIter` and override the "
-                "`inputs_labels_from_batch` method.".format(type(batch_data))
-            )
-
-        inputs, labels, *_ = batch_data
-
-        return inputs, labels
-
     def __iter__(self):
         return self
 
     def __next__(self):
         batch = next(self._iterator)
-        return self.inputs_labels_from_batch(batch)
+        return batch
 
 
 class TrainDataLoaderIter(DataLoaderIter):
@@ -56,15 +44,13 @@ class TrainDataLoaderIter(DataLoaderIter):
     def __next__(self):
         try:
             batch = next(self._iterator)
-            inputs, labels = self.inputs_labels_from_batch(batch)
         except StopIteration:
             if not self.auto_reset:
                 raise
             self._iterator = iter(self.data_loader)
             batch = next(self._iterator)
-            inputs, labels = self.inputs_labels_from_batch(batch)
 
-        return inputs, labels
+        return batch
 
 
 class ValDataLoaderIter(DataLoaderIter):
@@ -402,23 +388,6 @@ class LRFinder(object):
         self.optimizer.step()
 
         return total_loss.item()
-
-    def _move_to_device(self, inputs, labels, non_blocking=True):
-        def move(obj, device, non_blocking=True):
-            if hasattr(obj, "to"):
-                return obj.to(device, non_blocking=non_blocking)
-            elif isinstance(obj, tuple):
-                return tuple(move(o, device, non_blocking) for o in obj)
-            elif isinstance(obj, list):
-                return [move(o, device, non_blocking) for o in obj]
-            elif isinstance(obj, dict):
-                return {k: move(o, device, non_blocking) for k, o in obj.items()}
-            else:
-                return obj
-
-        inputs = move(inputs, self.device, non_blocking=non_blocking)
-        labels = move(labels, self.device, non_blocking=non_blocking)
-        return inputs, labels
 
     def _validate(self, val_iter, non_blocking_transfer=True, **kwargs):
         # Set model to evaluation mode and disable gradient computation
