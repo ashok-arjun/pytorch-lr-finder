@@ -492,7 +492,9 @@ class LRFinder(object):
         # Show only if the figure was created internally
         if fig is not None:
             plt.show()
-
+        
+        plt.savefig('lr_plot.png', bbox_inches='tight')
+        print('Plot saved at lr_plot.png')
         if suggest_lr and min_grad_idx is not None:
             return ax, lrs[min_grad_idx]
         else:
